@@ -526,7 +526,7 @@ def run_jsqlsearch(jql, use_internal_field_names, show_comments, time_field, max
     for fielditem in fullfields:
         fieldlist[fielditem['id']] = fielditem['name']
 
-    results = parse_issues(issues['issues'], fieldlist, use_internal_field_names, time_field, kv_string_fields=kv_string_fields)
+    results = parse_issues(issues_all, fieldlist, use_internal_field_names, time_field, kv_string_fields=kv_string_fields)
     splunk.Intersplunk.outputStreamResults(results)
 
 
