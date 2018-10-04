@@ -123,7 +123,7 @@ def run_changelog(jql):
                     row['assignee_name'] = issue['fields']['assignee']['displayName']
                 row['summary'] = issue['fields']['summary']
                 results.append(row)
-    
+
     splunk.Intersplunk.outputStreamResults(results)
 
 def sprints_by_rapidboard_id(rapidboard_id, rapidboard_name):
@@ -152,7 +152,7 @@ def sprints_by_rapidboard_id(rapidboard_id, rapidboard_name):
         row['_time'] = int(time.time())
         row['_raw'] = str(row)
         results.append(row)
-    
+
     return results
 
 def get_field_name(jirafield, field_list, use_internal_field_names):
@@ -203,8 +203,8 @@ def sprints_by_rapidboard(rapidboards):
             row['_time'] = int(time.time())
             row['_raw'] = str(row)
             results.append(row)
-            
-    
+
+
     return results
 
 def parse_kv_string(kv_str_arr):
@@ -321,9 +321,9 @@ def parse_comments(issues, use_internal_field_names, time_field):
             row['source'] = 'jira_rest'
             row['sourcetype'] = 'jira_comments'
             results.append(row)
-    
+
     return results
-        
+
 
 def run_rapidboards_all():
     logger.info("run_rapidboards_all")
@@ -429,7 +429,7 @@ def run_rapidboards_id_issues(rapidboard_id):
                     row['id'] = issues[issue_id]
                 else:
                     row[issue_id] = str(issues[issue_id])
-        
+
         row['rapidboard'] = rapidboards['rapidViewId']
         row['source'] = 'rapidboards'
         row['host'] = 'JIRA'
@@ -437,7 +437,7 @@ def run_rapidboards_id_issues(rapidboard_id):
         row['_time'] = int(time.time())
         row['_raw'] = str(row)
         results.append(row)
-    
+
     splunk.Intersplunk.outputStreamResults(results)
 
 
@@ -463,7 +463,7 @@ def run_rapidboards_id_sprints(rapidboard_id):
                             row['remoteLinks'].append(str(rl['url']))
             else:
                 row[k] = sprint[k]
-        
+
         row['rapidboard'] = rapidboards['rapidViewId']
         row['host'] = jira_service.host
         row['source'] = 'jira_rest'
@@ -472,7 +472,7 @@ def run_rapidboards_id_sprints(rapidboard_id):
         row['_raw'] = str(row)
 
         results.append(row)
-    
+
     splunk.Intersplunk.outputStreamResults(results)
 
 def get_fields():
@@ -483,6 +483,9 @@ def get_fields():
 
 def run_jsqlsearch(jql, use_internal_field_names, show_comments, time_field, max_results=100000, is_issues_query=False, kv_string_fields=[]):
     offset = 0
+    offset_multiplier = 100
+    issues_all = {}
+
     args = urllib.quote_plus(jql).split()
 
     target = '/rest/api/2/search'
@@ -498,6 +501,20 @@ def run_jsqlsearch(jql, use_internal_field_names, show_comments, time_field, max
 
     path = target + "?" + encoded_url_args
     issues = jira_service.request(path)
+
+    issues_all = issues['issues']
+    total_issues = issues['total']
+
+    # offset iteration
+    if total_issues > offset_multiplier:
+
+        for offset in range(offset_multiplier,total_issues,offset_multiplier):
+
+            url_args['startAt'] = offset
+            encoded_url_args = urllib.urlencode(url_args)
+            path = target + "?" + encoded_url_args
+            issues = jira_service.request(path)
+            issues_all = issues_all + issues['issues']
 
     # TODO: fix this
     # if show_comments == True:
@@ -564,7 +581,7 @@ def handle_jql_args(args):
         max_results_idx = args.index('max_results') + 1
         if len(args) < max_results_idx + 1:
             raise SearchArgException("max_results used, but no number provided. Usage example: max_results 1000")
-        
+
         max_results = args[max_results_idx]
         try:
             max_results = int(max_results)
@@ -590,7 +607,7 @@ def handle_jql_args(args):
         kv_string_fields_idx = args.index('kv_string_fields') + 1
         if len(args) < kv_string_fields_idx + 1:
             raise SearchArgException("kv_string_fields used, but no field provided. Usage example: kv_string_fields 'foo,bar'")
-        
+
         kv_string_fields = args[kv_string_fields_idx]
         kv_string_fields = kv_string_fields.split(",")
         logger.info("kv_string_fields: %s" % kv_string_fields)
@@ -642,4 +659,3 @@ except Exception, e:
     err['trace'] = str(trace)
     err['search'] = sys.argv[1:]
     logger.exception(err)
-
